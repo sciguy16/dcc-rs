@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 bitvec = { version = "1", default-features = false }
-embedded-hal = "1.0.0-alpha.8"
+embedded-hal = { version = "0.2.7", features = ["unproven"] }

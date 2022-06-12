@@ -18,12 +18,51 @@ use crate::hal::{
     gpio::{gpioc, Output, PushPull},
     pac::{interrupt, Interrupt, Peripherals, TIM2},
     prelude::*,
-    timer::{CounterMs, Event},
+    timer::{CounterUs, Event},
 };
 
 use core::cell::RefCell;
-use cortex_m::{asm::wfi, interrupt::Mutex};
+use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
+
+use dcc_rs::DccInterruptHandler;
+
+// A type definition for the GPIO pin to be used for our LED
+type DccDirPin = gpioc::PC13<Output<PushPull>>;
+
+// Make DCC thingy globally available
+static G_DCC: Mutex<RefCell<Option<DccInterruptHandler<DccDirPin>>>> =
+    Mutex::new(RefCell::new(None));
+
+// Make timer interrupt registers globally available
+static G_TIM: Mutex<RefCell<Option<CounterUs<TIM2>>>> = Mutex::new(RefCell::new(None));
+
+#[interrupt]
+fn TIM2() {
+    static mut DCC: Option<DccInterruptHandler<DccDirPin>> = None;
+    static mut TIM: Option<CounterUs<TIM2>> = None;
+
+    let dcc = DCC.get_or_insert_with(|| {
+        cortex_m::interrupt::free(|cs| {
+            // Move LED pin here, leaving a None in its place
+            G_DCC.borrow(cs).replace(None).unwrap()
+        })
+    });
+
+    let tim = TIM.get_or_insert_with(|| {
+        cortex_m::interrupt::free(|cs| {
+            // Move LED pin here, leaving a None in its place
+            G_TIM.borrow(cs).replace(None).unwrap()
+        })
+    });
+
+    // info!("TICK");
+
+    if let Ok(new_delay) = dcc.tick() {
+        trace!("Setting delay to {}us", new_delay);
+    }
+    let _ = tim.wait();
+}
 
 #[entry]
 fn main() -> ! {
@@ -35,17 +74,54 @@ fn main() -> ! {
     let mut flash = dp.FLASH.constrain();
 
     // Prepare the alternate function I/O registers
-    let mut afio = dp.AFIO.constrain();
-    let clocks = rcc.cfgr.freeze(&mut flash.acr);
+    //let mut afio = dp.AFIO.constrain();
+    // let clocks = rcc.cfgr.freeze(&mut flash.acr);
+    let clocks = rcc
+        .cfgr
+        .use_hse(8.MHz())
+        .sysclk(48.MHz())
+        //.pclk1(8.MHz())
+        .freeze(&mut flash.acr);
 
-    let mut gpioa = dp.GPIOA.split();
-    let mut gpiob = dp.GPIOB.split();
+    //let mut gpioa = dp.GPIOA.split();
+    //let mut gpiob = dp.GPIOB.split();
 
-    // define RX/TX pins
-    // let tx_pin = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
-    // let rx_pin = gpioa.pa10;
-    // let mut tx_enable = gpioa.pa8.into_push_pull_output(&mut gpioa.crh);
-    // tx_enable.set_low();
+    // Configure PC13 pin to blink LED
+    let mut gpioc = dp.GPIOC.split();
+    info!("a");
+    info!("a");
+    let dcc_pin = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 
-    loop {}
+    let mut dcc = DccInterruptHandler::new(dcc_pin, 100, 58);
+    dcc.write(&[0x00, 0xff]).unwrap();
+    info!("a");
+
+    // Move the DCC thingy into our global storage
+    cortex_m::interrupt::free(|cs| *G_DCC.borrow(cs).borrow_mut() = Some(dcc));
+    info!("a");
+
+    // Set up a timer expiring after 1s
+    let mut timer = dp.TIM2.counter_us(&clocks);
+    // Generate an interrupt when the timer expires
+    info!("a");
+    timer.start(50000.micros()).unwrap();
+    info!("a");
+    timer.listen(Event::Update);
+    info!("a");
+
+    // Move the timer into our global storage
+    cortex_m::interrupt::free(|cs| *G_TIM.borrow(cs).borrow_mut() = Some(timer));
+    info!("a");
+
+    //enable TIM2 interrupt
+    // cortex_m::peripheral::NVIC::unpend(Interrupt::TIM2);
+    unsafe {
+        cortex_m::peripheral::NVIC::unmask(Interrupt::TIM2);
+    }
+    info!("init complete");
+
+    loop {
+        //info!("loop");
+        // wfi();
+    }
 }

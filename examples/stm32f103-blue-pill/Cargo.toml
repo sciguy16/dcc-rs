@@ -21,3 +21,6 @@ panic-halt = "0.2"
 [dependencies.stm32f1xx-hal]
 version = "0.9"
 features = ["stm32f103"] # replace the model of your microcontroller here
+
+[profile.release]
+debug = 2

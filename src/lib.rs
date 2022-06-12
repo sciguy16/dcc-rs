@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
 use bitvec::prelude::*;
-use embedded_hal::digital::blocking::ToggleableOutputPin;
+use embedded_hal::digital::v2::OutputPin;
 
 const BUFFER_SIZE: usize = 24;
 type BufferType = BitArr!(for 24*8, in u8, Msb0);
@@ -11,20 +11,20 @@ pub enum Error {
     TooLong,
 }
 
-pub struct DccInterruptHandler<P: ToggleableOutputPin> {
+pub struct DccInterruptHandler<P: OutputPin> {
     write_buffer: [u8; BUFFER_SIZE],
     write_buffer_len: usize,
     buffer: BufferType,
     buffer_num_bits: usize,
     buffer_position: usize,
     second_half_of_bit: bool,
-    one_clocks: usize,
-    zero_clocks: usize,
+    one_micros: usize,
+    zero_micros: usize,
     output_pin: P,
 }
 
-impl<P: ToggleableOutputPin> DccInterruptHandler<P> {
-    pub fn new(output_pin: P, one_clocks: usize, zero_clocks: usize) -> Self {
+impl<P: OutputPin> DccInterruptHandler<P> {
+    pub fn new(output_pin: P, one_micros: usize, zero_micros: usize) -> Self {
         Self {
             write_buffer: [0; BUFFER_SIZE],
             write_buffer_len: 0,
@@ -32,8 +32,8 @@ impl<P: ToggleableOutputPin> DccInterruptHandler<P> {
             buffer_num_bits: 0,
             buffer_position: 0,
             second_half_of_bit: false,
-            one_clocks,
-            zero_clocks,
+            one_micros,
+            zero_micros,
             output_pin,
         }
     }
@@ -55,14 +55,14 @@ impl<P: ToggleableOutputPin> DccInterruptHandler<P> {
             eprintln!("  second half of bit: {}", self.second_half_of_bit);
             eprintln!(
                 "  num clocks: zero={}, one={}",
-                self.zero_clocks, self.one_clocks
+                self.zero_micros, self.one_micros
             );
         }
 
         // "do nothing" if nothing to send
         if self.buffer_num_bits == 0 {
             if self.write_buffer_len == 0 {
-                return Ok(self.one_clocks);
+                return Ok(self.one_micros);
             } else {
                 // copy write buffer into internal buffer
                 self.buffer
@@ -72,16 +72,20 @@ impl<P: ToggleableOutputPin> DccInterruptHandler<P> {
         }
 
         // send one bit
-        self.output_pin.toggle().unwrap();
+        if self.second_half_of_bit {
+            self.output_pin.set_high()?;
+        } else {
+            self.output_pin.set_low()?;
+        }
 
         let new_clock = if *self.buffer.get(self.buffer_position).unwrap() {
             #[cfg(test)]
             eprintln!("ONE");
-            self.one_clocks
+            self.one_micros
         } else {
             #[cfg(test)]
             eprintln!("ZERO");
-            self.zero_clocks
+            self.zero_micros
         };
 
         if self.second_half_of_bit {
@@ -116,7 +120,7 @@ impl<P: ToggleableOutputPin> DccInterruptHandler<P> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use embedded_hal::digital::{blocking::*, ErrorType};
+    use embedded_hal::digital::v2::*;
     use std::convert::Infallible;
 
     #[derive(Default)]
@@ -124,11 +128,9 @@ mod test {
         state: bool,
     }
 
-    impl ErrorType for MockPin {
-        type Error = Infallible;
-    }
-
     impl OutputPin for MockPin {
+        type Error = Infallible;
+
         #[inline(always)]
         fn set_high(&mut self) -> Result<(), Self::Error> {
             self.state = true;
@@ -154,21 +156,13 @@ mod test {
         }
     }
 
-    impl ToggleableOutputPin for MockPin {
-        #[inline(always)]
-        fn toggle(&mut self) -> Result<(), Self::Error> {
-            self.state = !self.state;
-            Ok(())
-        }
-    }
-
     #[test]
     fn mock_pin_works() {
         let mut pin = MockPin::default();
         assert!(pin.is_set_low().unwrap());
         pin.set_high().unwrap();
         assert!(pin.is_set_high().unwrap());
-        pin.toggle().unwrap();
+        pin.set_low().unwrap();
         assert!(pin.is_set_low().unwrap());
     }
 
