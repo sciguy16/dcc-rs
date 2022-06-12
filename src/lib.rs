@@ -210,10 +210,10 @@ mod test {
 
     #[test]
     fn send_a_packet() {
-        const ONE: u32 = 100;
-        const ZERO: u32 = 58;
+        const ZERO: u32 = 100;
+        const ONE: u32 = 58;
         let pin = MockPin::default();
-        let mut dcc = DccInterruptHandler::new(pin, ZERO, ONE);
+        let mut dcc = DccInterruptHandler::new(pin);
         let buffer = [0x00, 0xff].view_bits();
         dcc.write(buffer).unwrap();
 
@@ -221,7 +221,7 @@ mod test {
         for _ in 0..2 {
             let new_delay = dcc.tick().unwrap();
             eprintln!("new delay: {new_delay}");
-            assert_eq!(new_delay, 500);
+            assert_eq!(new_delay, ZERO);
         }
 
         // run 32 ticks to make sure that the clock settings are correct
@@ -244,7 +244,7 @@ mod test {
         for _ in 0..8 {
             let new_delay = dcc.tick().unwrap();
             eprintln!("new delay: {new_delay}");
-            assert_eq!(new_delay, 500);
+            assert_eq!(new_delay, ZERO);
         }
     }
 }

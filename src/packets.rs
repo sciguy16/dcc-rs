@@ -234,8 +234,8 @@ mod test {
         display_serialise_buffer(&buf);
         println!("expected:");
         display_serialise_buffer(&expected);
-        assert_eq!(len, 42);
-        assert_eq!(buf[..len], expected[..42]);
+        assert_eq!(len, 43);
+        assert_eq!(buf[..len], expected[..43]);
         Ok(())
     }
 }
