@@ -3,12 +3,16 @@
 use bitvec::prelude::*;
 use embedded_hal::digital::v2::OutputPin;
 
+pub mod packets;
+
 const BUFFER_SIZE: usize = 24;
 type BufferType = BitArr!(for 24*8, in u8, Msb0);
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     TooLong,
+    InvalidAddress,
+    InvalidSpeed,
 }
 
 pub struct DccInterruptHandler<P: OutputPin> {
@@ -168,8 +172,8 @@ mod test {
 
     #[test]
     fn send_a_packet() {
-        const ONE: usize = 100;
-        const ZERO: usize = 58;
+        const ONE: u32 = 100;
+        const ZERO: u32 = 58;
         let pin = MockPin::default();
         let mut dcc = DccInterruptHandler::new(pin, ONE, ZERO);
         let buffer = [0x00, 0xff];

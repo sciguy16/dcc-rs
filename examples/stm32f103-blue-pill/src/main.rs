@@ -95,7 +95,6 @@ fn main() -> ! {
     // Configure PC13 pin to blink LED
     let mut gpioc = dp.GPIOC.split();
     info!("a");
-    info!("a");
     let dcc_pin = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 
     let mut dcc = DccInterruptHandler::new(dcc_pin, 100, 58);
