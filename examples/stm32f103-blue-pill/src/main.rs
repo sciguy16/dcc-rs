@@ -16,7 +16,7 @@ use stm32f1xx_hal as hal;
 
 use crate::hal::{
     gpio::{gpioc, Output, PushPull},
-    pac::{interrupt, Interrupt, Peripherals, TIM2},
+    pac::{interrupt, tim2, Interrupt, Peripherals, TIM2},
     prelude::*,
     timer::{CounterUs, Event},
 };
@@ -59,8 +59,14 @@ fn TIM2() {
     // info!("TICK");
 
     if let Ok(new_delay) = dcc.tick() {
-        trace!("Setting delay to {}us", new_delay);
+        //info!("Setting delay to {}us", new_delay);
+        // tim.CCR_W.bits(0xff);
+        // let t = tim.release();
+        // let tim = t.counter_us(new_delay.micros());
+        //tim.reset();
+        tim.start(new_delay.micros()).unwrap();
     }
+
     let _ = tim.wait();
 }
 

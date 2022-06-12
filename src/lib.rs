@@ -18,13 +18,13 @@ pub struct DccInterruptHandler<P: OutputPin> {
     buffer_num_bits: usize,
     buffer_position: usize,
     second_half_of_bit: bool,
-    one_micros: usize,
-    zero_micros: usize,
+    one_micros: u32,
+    zero_micros: u32,
     output_pin: P,
 }
 
 impl<P: OutputPin> DccInterruptHandler<P> {
-    pub fn new(output_pin: P, one_micros: usize, zero_micros: usize) -> Self {
+    pub fn new(output_pin: P, one_micros: u32, zero_micros: u32) -> Self {
         Self {
             write_buffer: [0; BUFFER_SIZE],
             write_buffer_len: 0,
@@ -40,7 +40,7 @@ impl<P: OutputPin> DccInterruptHandler<P> {
 
     /// Run on interrupt; returns the new clock count to set the interrupt to
     #[inline(always)]
-    pub fn tick(&mut self) -> Result<usize, P::Error> {
+    pub fn tick(&mut self) -> Result<u32, P::Error> {
         #[cfg(test)]
         {
             eprintln!("[tick] DCC state:");
