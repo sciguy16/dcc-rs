@@ -118,7 +118,7 @@ fn main() -> ! {
     info!("a");
     let mut buffer = SerialiseBuffer::default();
     let len = pkt.serialise(&mut buffer).unwrap();
-    dcc.write(&buffer.get(0..len).unwrap()).unwrap();
+    dcc.write(buffer.get(0..len).unwrap()).unwrap();
     info!("a");
 
     // Move the DCC thingy into our global storage
