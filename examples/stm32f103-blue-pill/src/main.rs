@@ -6,6 +6,8 @@
 #![no_main]
 #![no_std]
 
+const LOCO_ADDR: u8 = 2;
+
 #[macro_use]
 extern crate defmt; // logging macros
 
@@ -103,7 +105,7 @@ fn main() -> ! {
 
     let mut dcc = DccInterruptHandler::new(dcc_pin, 100, 58);
     let pkt = SpeedAndDirection::builder()
-        .address(3)
+        .address(10)
         .unwrap()
         .speed(14)
         .unwrap()
@@ -144,14 +146,34 @@ fn main() -> ! {
     // make a delay thing to send packets
     let mut delay = cp.SYST.delay(&clocks);
 
+    let mut reverse_counter = 0;
+    let mut direction = Direction::Forward;
+    let mut speed = 0;
     loop {
-        //info!("tx");
+        //info!("tx, addr = {}", addr);
         // pop a new chunk of data into the buffer
+        let pkt = SpeedAndDirection::builder()
+            .address(LOCO_ADDR)
+            .unwrap()
+            .speed(speed)
+            .unwrap()
+            .direction(direction)
+            .build();
         let mut buffer = SerialiseBuffer::default();
         let len = pkt.serialise(&mut buffer).unwrap();
         cortex_m::interrupt::free(|cs| {
             *TX_BUFFER.borrow(cs).borrow_mut() = Some((buffer, len))
         });
-        delay.delay_ms(5u16);
+        reverse_counter += 1;
+        if reverse_counter > 70 {
+            speed = 0;
+        }
+        if reverse_counter > 100 {
+            reverse_counter = 0;
+            speed = 4;
+            direction.toggle();
+            info!("Switch! Now running {:?}", direction);
+        }
+        delay.delay_ms(15u16);
     }
 }

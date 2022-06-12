@@ -9,8 +9,6 @@ pub mod packets;
 const BUFFER_SIZE: usize = 24 * 8;
 type BufferType = BitArr!(for 24*8, in u8, Msb0);
 
-const IDLE_MICROS: u32 = 500;
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     TooLong,

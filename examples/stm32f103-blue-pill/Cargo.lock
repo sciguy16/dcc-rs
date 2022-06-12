@@ -122,6 +122,7 @@ name = "dcc-rs"
 version = "0.1.0"
 dependencies = [
  "bitvec",
+ "defmt",
  "embedded-hal",
 ]
 

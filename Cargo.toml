@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+use-defmt = ["defmt"]
+
 [dependencies]
 bitvec = { version = "1", default-features = false }
 embedded-hal = { version = "0.2.7", features = ["unproven"] }
+defmt = { version = "0.3", optional = true }

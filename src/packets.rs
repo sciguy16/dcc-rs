@@ -13,6 +13,7 @@ impl Default for Preamble {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "use-defmt", derive(defmt::Format))]
 pub enum Direction {
     Forward,
     Backward,
@@ -21,6 +22,16 @@ pub enum Direction {
 impl Default for Direction {
     fn default() -> Self {
         Self::Forward
+    }
+}
+
+impl Direction {
+    pub fn toggle(&mut self) {
+        use Direction::*;
+        *self = match *self {
+            Forward => Backward,
+            Backward => Forward,
+        }
     }
 }
 
