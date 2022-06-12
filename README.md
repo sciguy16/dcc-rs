@@ -25,6 +25,9 @@ only the basic "speed and direction" packet. Other DCC packets are a work in
 progress. DCC receiving is under future work, once the main packet types have
 been implemented.
 
+## Example implementations
+* [examples/stm32f103-blue-pill](examples/stm32f103-blue-pill) Base station
+
 ## Licence
 This crate is available under the terms of the Mozilla Public Licence Version
 2.0.
