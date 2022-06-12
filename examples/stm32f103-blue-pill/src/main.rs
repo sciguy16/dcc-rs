@@ -15,7 +15,7 @@ use panic_halt as _;
 use stm32f1xx_hal as hal;
 
 use crate::hal::{
-    gpio::{gpioc, Output, PushPull},
+    gpio::{gpioa, Output, PushPull},
     pac::{interrupt, Interrupt, Peripherals, TIM2},
     prelude::*,
     timer::{CounterUs, Event},
@@ -28,7 +28,7 @@ use cortex_m_rt::entry;
 use dcc_rs::{packets::*, DccInterruptHandler};
 
 // A type definition for the GPIO pin to be used for our LED
-type DccDirPin = gpioc::PC13<Output<PushPull>>;
+type DccDirPin = gpioa::PA0<Output<PushPull>>;
 
 // Make DCC thingy globally available
 static G_DCC: Mutex<RefCell<Option<DccInterruptHandler<DccDirPin>>>> =
@@ -94,13 +94,12 @@ fn main() -> ! {
         //.pclk1(8.MHz())
         .freeze(&mut flash.acr);
 
-    //let mut gpioa = dp.GPIOA.split();
+    let mut gpioa = dp.GPIOA.split();
     //let mut gpiob = dp.GPIOB.split();
+    //let mut gpioc = dp.GPIOC.split();
 
-    // Configure PC13 pin to blink LED
-    let mut gpioc = dp.GPIOC.split();
     info!("a");
-    let dcc_pin = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
+    let dcc_pin = gpioa.pa0.into_push_pull_output(&mut gpioa.crl);
 
     let mut dcc = DccInterruptHandler::new(dcc_pin, 100, 58);
     let pkt = SpeedAndDirection::builder()
