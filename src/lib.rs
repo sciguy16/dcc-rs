@@ -77,13 +77,13 @@ impl<P: OutputPin> DccInterruptHandler<P> {
         let new_clock;
         self.state = match self.state {
             TxState::Idle { second_half_of_bit } => {
-                // transmit a long-duration zero
+                // transmit a zero
                 if second_half_of_bit {
                     self.output_pin.set_high()?;
                 } else {
                     self.output_pin.set_low()?;
                 }
-                new_clock = IDLE_MICROS;
+                new_clock = self.zero_micros;
 
                 if second_half_of_bit && self.write_buffer_len != 0 {
                     // copy write buffer into internal buffer
