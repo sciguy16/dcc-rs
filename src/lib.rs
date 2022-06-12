@@ -181,18 +181,21 @@ mod test {
         let buffer = [0x00, 0xff];
         dcc.write(&buffer).unwrap();
 
-        // run 32 ticks to make sure that the clock settings are correct
-        // (2 ticks per bit)
-        // 16 ticks are one
-        for _ in 0..16 {
-            let new_delay = dcc.tick().unwrap();
-            assert_eq!(new_delay, ZERO);
-        }
+        // output should probably loop over write buffer
+        for _ in 0..2 {
+            // run 32 ticks to make sure that the clock settings are correct
+            // (2 ticks per bit)
+            // 16 ticks are one
+            for _ in 0..16 {
+                let new_delay = dcc.tick().unwrap();
+                assert_eq!(new_delay, ZERO);
+            }
 
-        // 16 ticks are zero
-        for _ in 0..16 {
-            let new_delay = dcc.tick().unwrap();
-            assert_eq!(new_delay, ONE);
+            // 16 ticks are zero
+            for _ in 0..16 {
+                let new_delay = dcc.tick().unwrap();
+                assert_eq!(new_delay, ONE);
+            }
         }
     }
 }
