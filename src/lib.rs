@@ -5,8 +5,10 @@ use embedded_hal::digital::v2::OutputPin;
 
 pub mod packets;
 
-const BUFFER_SIZE: usize = 24;
+const BUFFER_SIZE: usize = 24 * 8;
 type BufferType = BitArr!(for 24*8, in u8, Msb0);
+
+const IDLE_MICROS: u32 = 500;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -16,7 +18,7 @@ pub enum Error {
 }
 
 pub struct DccInterruptHandler<P: OutputPin> {
-    write_buffer: [u8; BUFFER_SIZE],
+    write_buffer: BufferType,
     write_buffer_len: usize,
     buffer: BufferType,
     buffer_num_bits: usize,
@@ -28,9 +30,9 @@ pub struct DccInterruptHandler<P: OutputPin> {
 }
 
 impl<P: OutputPin> DccInterruptHandler<P> {
-    pub fn new(output_pin: P, one_micros: u32, zero_micros: u32) -> Self {
+    pub fn new(output_pin: P, zero_micros: u32, one_micros: u32) -> Self {
         Self {
-            write_buffer: [0; BUFFER_SIZE],
+            write_buffer: BitArray::default(),
             write_buffer_len: 0,
             buffer: BitArray::default(),
             buffer_num_bits: 0,
@@ -66,11 +68,10 @@ impl<P: OutputPin> DccInterruptHandler<P> {
         // "do nothing" if nothing to send
         if self.buffer_num_bits == 0 {
             if self.write_buffer_len == 0 {
-                return Ok(self.one_micros);
+                return Ok(IDLE_MICROS);
             } else {
                 // copy write buffer into internal buffer
-                self.buffer
-                    .copy_from_bitslice(self.write_buffer.view_bits());
+                self.buffer.copy_from_bitslice(&self.write_buffer);
                 self.buffer_num_bits = self.write_buffer_len * 8;
             }
         }
@@ -82,7 +83,7 @@ impl<P: OutputPin> DccInterruptHandler<P> {
             self.output_pin.set_low()?;
         }
 
-        let new_clock = if *self.buffer.get(self.buffer_position).unwrap() {
+        let mut new_clock = if *self.buffer.get(self.buffer_position).unwrap() {
             #[cfg(test)]
             eprintln!("ONE");
             self.one_micros
@@ -100,6 +101,8 @@ impl<P: OutputPin> DccInterruptHandler<P> {
             self.buffer_position += 1;
             if self.buffer_position == self.buffer_num_bits {
                 self.buffer_position = 0;
+                // if end of packet then wait for longer time
+                new_clock = IDLE_MICROS;
             }
         }
         self.second_half_of_bit = !self.second_half_of_bit;
@@ -108,11 +111,11 @@ impl<P: OutputPin> DccInterruptHandler<P> {
     }
 
     /// Stage a packet for transmission
-    pub fn write(&mut self, buf: &[u8]) -> Result<(), Error> {
+    pub fn write(&mut self, buf: &BitSlice<u8, Msb0>) -> Result<(), Error> {
         if buf.len() > BUFFER_SIZE {
             Err(Error::TooLong)
         } else {
-            self.write_buffer[0..buf.len()].copy_from_slice(buf);
+            self.write_buffer[0..buf.len()].copy_from_bitslice(buf);
             self.write_buffer_len = buf.len();
             #[cfg(test)]
             eprintln!("Written {} bytes to write buffer", buf.len());
@@ -176,8 +179,8 @@ mod test {
         const ZERO: u32 = 58;
         let pin = MockPin::default();
         let mut dcc = DccInterruptHandler::new(pin, ONE, ZERO);
-        let buffer = [0x00, 0xff];
-        dcc.write(&buffer).unwrap();
+        let buffer = [0x00, 0xff].view_bits();
+        dcc.write(buffer).unwrap();
 
         // output should probably loop over write buffer
         for _ in 0..2 {
@@ -190,10 +193,14 @@ mod test {
             }
 
             // 16 ticks are zero
-            for _ in 0..16 {
+            for _ in 0..15 {
                 let new_delay = dcc.tick().unwrap();
                 assert_eq!(new_delay, ONE);
             }
+
+            // final delay is a bit longer for a gap between packets
+            let new_delay = dcc.tick().unwrap();
+            assert_eq!(new_delay, 5000);
         }
     }
 }

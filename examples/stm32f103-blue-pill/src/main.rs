@@ -16,7 +16,7 @@ use stm32f1xx_hal as hal;
 
 use crate::hal::{
     gpio::{gpioc, Output, PushPull},
-    pac::{interrupt, tim2, Interrupt, Peripherals, TIM2},
+    pac::{interrupt, Interrupt, Peripherals, TIM2},
     prelude::*,
     timer::{CounterUs, Event},
 };
@@ -25,7 +25,7 @@ use core::cell::RefCell;
 use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 
-use dcc_rs::DccInterruptHandler;
+use dcc_rs::{packets::*, DccInterruptHandler};
 
 // A type definition for the GPIO pin to be used for our LED
 type DccDirPin = gpioc::PC13<Output<PushPull>>;
@@ -98,7 +98,19 @@ fn main() -> ! {
     let dcc_pin = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
 
     let mut dcc = DccInterruptHandler::new(dcc_pin, 100, 58);
-    dcc.write(&[0x00, 0xff]).unwrap();
+    let pkt = SpeedAndDirection::builder()
+        .address(3)
+        .unwrap()
+        .speed(14)
+        .unwrap()
+        .direction(Direction::Forward)
+        .build();
+    info!("a");
+    let mut buffer = SerialiseBuffer::default();
+    info!("a");
+    let len = pkt.serialise(&mut buffer).unwrap();
+    info!("a");
+    dcc.write(&buffer.get(0..len).unwrap()).unwrap();
     info!("a");
 
     // Move the DCC thingy into our global storage
