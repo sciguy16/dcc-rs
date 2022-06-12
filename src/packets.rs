@@ -1,9 +1,19 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! This module provides types and serialisers for each packet type
+//! defined by the NMRA standard.
+
 use crate::Error;
 use bitvec::prelude::*;
 
+/// Convenient Result wrapper
 pub type Result<T> = core::result::Result<T, Error>;
 
-pub struct Preamble(BitArr!(for 14, in u8, Msb0));
+struct Preamble(BitArr!(for 14, in u8, Msb0));
+
+/// Buffer long enough to serialise any common DCC packet into
 pub type SerialiseBuffer = BitArr!(for 43, in u8, Msb0);
 
 impl Default for Preamble {
@@ -12,10 +22,14 @@ impl Default for Preamble {
     }
 }
 
+/// Possible directions, usually referenced to the "forward" direction
+/// of a loco
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "use-defmt", derive(defmt::Format))]
 pub enum Direction {
+    /// Forward
     Forward,
+    /// Backward
     Backward,
 }
 
@@ -26,6 +40,7 @@ impl Default for Direction {
 }
 
 impl Direction {
+    /// Switches a direction to the opposite one
     pub fn toggle(&mut self) {
         use Direction::*;
         *self = match *self {
@@ -35,6 +50,8 @@ impl Direction {
     }
 }
 
+/// Speed and Direction packet. Used to command a loco to move in the
+/// given direction at the given speed.
 pub struct SpeedAndDirection {
     address: u8,
     instruction: u8,
@@ -42,10 +59,13 @@ pub struct SpeedAndDirection {
 }
 
 impl SpeedAndDirection {
+    /// Builder interface for `SpeedAndDirection`. Use of the Builder
+    /// pattern ensures that only valid packets are produced.
     pub fn builder() -> SpeedAndDirectionBuilder {
         SpeedAndDirectionBuilder::default()
     }
 
+    /// Serialise the packed into the provided buffer
     pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
         buf[0..16].copy_from_bitslice([0xff, 0xfe].view_bits::<Msb0>()); // preamble
         buf.set(15, false); // start bit
@@ -61,6 +81,7 @@ impl SpeedAndDirection {
     }
 }
 
+/// Builder used to construct a SpeedAndDirection packet
 #[derive(Default)]
 pub struct SpeedAndDirectionBuilder {
     address: Option<u8>,
@@ -70,6 +91,9 @@ pub struct SpeedAndDirectionBuilder {
 }
 
 impl SpeedAndDirectionBuilder {
+    /// Sets the address. In short mode the address has to be between 1
+    /// and 126. Returns `Error::InvalidAddress` if the provided address
+    /// is outside this range.
     pub fn address(&mut self, address: u8) -> Result<&mut Self> {
         if address == 0 || address > 0x7f {
             Err(Error::InvalidAddress)
@@ -79,6 +103,9 @@ impl SpeedAndDirectionBuilder {
         }
     }
 
+    /// Sets the speed. In short mode the speed has to be between 0 and
+    /// 16. Returns `Error::InvalidSpeed` if the provided speed is outside
+    /// this range.
     pub fn speed(&mut self, speed: u8) -> Result<&mut Self> {
         if speed > 0x0f {
             Err(Error::InvalidSpeed)
@@ -88,16 +115,28 @@ impl SpeedAndDirectionBuilder {
         }
     }
 
+    /// Sets the direction
     pub fn direction(&mut self, direction: Direction) -> &mut Self {
         self.direction = Some(direction);
         self
     }
 
+    /// Sets the "headlight" bit. Can also be an additional speed bit
+    /// depending on decoder configuration.
     pub fn headlight(&mut self, headlight: bool) -> &mut Self {
         self.headlight = Some(headlight);
         self
     }
 
+    /// Build a `SpeedAndDirection` packet using the provided values,
+    /// falling back to sensible defaults if not all fields have been
+    /// provided.
+    ///
+    /// Defaults:
+    /// * `speed = 0`
+    /// * `direction = Forward`
+    /// * `address = 3`
+    /// * `headlight = false`
     pub fn build(&mut self) -> SpeedAndDirection {
         let address = self.address.unwrap_or(3);
         let mut instruction = 0b0100_0000; // packet type

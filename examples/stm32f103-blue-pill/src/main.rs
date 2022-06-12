@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! blinky timer using interrupts on TIM2, adapted from blinky_timer_irq.rs example from
 //! stm32f1xx-hal
 //!
@@ -103,7 +107,7 @@ fn main() -> ! {
     info!("a");
     let dcc_pin = gpioa.pa0.into_push_pull_output(&mut gpioa.crl);
 
-    let mut dcc = DccInterruptHandler::new(dcc_pin, 100, 58);
+    let mut dcc = DccInterruptHandler::new(dcc_pin);
     let pkt = SpeedAndDirection::builder()
         .address(10)
         .unwrap()

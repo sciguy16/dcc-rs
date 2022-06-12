@@ -1,4 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#![doc = include_str!("../README.md")]
 #![cfg_attr(not(test), no_std)]
+#![deny(missing_docs)]
 
 pub use bitvec;
 use bitvec::prelude::*;
@@ -8,11 +13,17 @@ pub mod packets;
 
 const BUFFER_SIZE: usize = 24 * 8;
 type BufferType = BitArr!(for 24*8, in u8, Msb0);
+const ZERO_MICROS: u32 = 100;
+const ONE_MICROS: u32 = 58;
 
+/// Error types returned by this crate
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Error {
+    /// Data packet was too long for the internal buffer
     TooLong,
+    /// Not a valid short-mode DCC address (must be in range 1-126)
     InvalidAddress,
+    /// Not a valid short-mode DCC speed (must be in range 0-16)
     InvalidSpeed,
 }
 
@@ -27,19 +38,23 @@ enum TxState {
     },
 }
 
+/// The main interrupt handler. Calling the `tick` method advances the
+/// internal state and toggles the provided output pin to control the
+/// track polarity
 pub struct DccInterruptHandler<P: OutputPin> {
     write_buffer: BufferType,
     write_buffer_len: usize,
     buffer: BufferType,
     buffer_num_bits: usize,
     state: TxState,
-    one_micros: u32,
-    zero_micros: u32,
     output_pin: P,
 }
 
 impl<P: OutputPin> DccInterruptHandler<P> {
-    pub fn new(output_pin: P, zero_micros: u32, one_micros: u32) -> Self {
+    /// Initialise the interrupt handler. `output_pin` is the GPIO pin
+    /// connected to e.g. a motor shield's `direction` pin to control the
+    /// track polarity.
+    pub fn new(output_pin: P) -> Self {
         Self {
             write_buffer: BitArray::default(),
             write_buffer_len: 0,
@@ -48,8 +63,6 @@ impl<P: OutputPin> DccInterruptHandler<P> {
             state: TxState::Idle {
                 second_half_of_bit: false,
             },
-            one_micros,
-            zero_micros,
             output_pin,
         }
     }
@@ -66,10 +79,6 @@ impl<P: OutputPin> DccInterruptHandler<P> {
                 &self.write_buffer[..self.write_buffer_len]
             );
             eprintln!("  state {:?}", self.state,);
-            eprintln!(
-                "  num clocks: zero={}, one={}",
-                self.zero_micros, self.one_micros
-            );
         }
 
         let new_clock;
@@ -81,7 +90,7 @@ impl<P: OutputPin> DccInterruptHandler<P> {
                 } else {
                     self.output_pin.set_low()?;
                 }
-                new_clock = self.zero_micros;
+                new_clock = ZERO_MICROS;
 
                 if second_half_of_bit && self.write_buffer_len != 0 {
                     // copy write buffer into internal buffer
@@ -108,15 +117,7 @@ impl<P: OutputPin> DccInterruptHandler<P> {
                 // transmit the next bit-half in the sequence
                 let current_bit = *self.buffer.get(offset).unwrap();
 
-                new_clock = if current_bit {
-                    #[cfg(test)]
-                    eprintln!("ONE");
-                    self.one_micros
-                } else {
-                    #[cfg(test)]
-                    eprintln!("ZERO");
-                    self.zero_micros
-                };
+                new_clock = if current_bit { ONE_MICROS } else { ZERO_MICROS };
 
                 if second_half_of_bit {
                     self.output_pin.set_high()?;
