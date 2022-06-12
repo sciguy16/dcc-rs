@@ -4,7 +4,7 @@ use bitvec::prelude::*;
 pub type Result<T> = core::result::Result<T, Error>;
 
 pub struct Preamble(BitArr!(for 14, in u8, Msb0));
-pub type SerialiseBuffer = BitArr!(for 42, in u8, Msb0);
+pub type SerialiseBuffer = BitArr!(for 43, in u8, Msb0);
 
 impl Default for Preamble {
     fn default() -> Self {
@@ -46,7 +46,7 @@ impl SpeedAndDirection {
 
         buf.set(42, true); // stop bit
 
-        Ok(42)
+        Ok(43)
     }
 }
 
@@ -178,7 +178,8 @@ mod test {
             0b01_1_00000, // crc[6..] + stop + 5 zeroes
         ];
         let mut expected = SerialiseBuffer::default();
-        expected[..43].copy_from_bitslice(&expected_arr.view_bits::<Msb0>()[..43]);
+        expected[..43]
+            .copy_from_bitslice(&expected_arr.view_bits::<Msb0>()[..43]);
         println!("got:");
         display_serialise_buffer(&buf);
         println!("expected:");

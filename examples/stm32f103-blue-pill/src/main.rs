@@ -35,7 +35,12 @@ static G_DCC: Mutex<RefCell<Option<DccInterruptHandler<DccDirPin>>>> =
     Mutex::new(RefCell::new(None));
 
 // Make timer interrupt registers globally available
-static G_TIM: Mutex<RefCell<Option<CounterUs<TIM2>>>> = Mutex::new(RefCell::new(None));
+static G_TIM: Mutex<RefCell<Option<CounterUs<TIM2>>>> =
+    Mutex::new(RefCell::new(None));
+
+// place for sending packets
+static TX_BUFFER: Mutex<RefCell<Option<(SerialiseBuffer, usize)>>> =
+    Mutex::new(RefCell::new(None));
 
 #[interrupt]
 fn TIM2() {
@@ -56,14 +61,13 @@ fn TIM2() {
         })
     });
 
-    // info!("TICK");
+    if let Some((new_data, len)) =
+        cortex_m::interrupt::free(|cs| TX_BUFFER.borrow(cs).replace(None))
+    {
+        dcc.write(&new_data[..len]).unwrap();
+    }
 
     if let Ok(new_delay) = dcc.tick() {
-        //info!("Setting delay to {}us", new_delay);
-        // tim.CCR_W.bits(0xff);
-        // let t = tim.release();
-        // let tim = t.counter_us(new_delay.micros());
-        //tim.reset();
         tim.start(new_delay.micros()).unwrap();
     }
 
@@ -75,6 +79,7 @@ fn main() -> ! {
     info!("Start boot");
 
     let dp = Peripherals::take().unwrap();
+    let cp = cortex_m::Peripherals::take().unwrap();
 
     let rcc = dp.RCC.constrain();
     let mut flash = dp.FLASH.constrain();
@@ -107,9 +112,7 @@ fn main() -> ! {
         .build();
     info!("a");
     let mut buffer = SerialiseBuffer::default();
-    info!("a");
     let len = pkt.serialise(&mut buffer).unwrap();
-    info!("a");
     dcc.write(&buffer.get(0..len).unwrap()).unwrap();
     info!("a");
 
@@ -127,7 +130,9 @@ fn main() -> ! {
     info!("a");
 
     // Move the timer into our global storage
-    cortex_m::interrupt::free(|cs| *G_TIM.borrow(cs).borrow_mut() = Some(timer));
+    cortex_m::interrupt::free(|cs| {
+        *G_TIM.borrow(cs).borrow_mut() = Some(timer)
+    });
     info!("a");
 
     //enable TIM2 interrupt
@@ -137,8 +142,17 @@ fn main() -> ! {
     }
     info!("init complete");
 
+    // make a delay thing to send packets
+    let mut delay = cp.SYST.delay(&clocks);
+
     loop {
-        //info!("loop");
-        // wfi();
+        //info!("tx");
+        // pop a new chunk of data into the buffer
+        let mut buffer = SerialiseBuffer::default();
+        let len = pkt.serialise(&mut buffer).unwrap();
+        cortex_m::interrupt::free(|cs| {
+            *TX_BUFFER.borrow(cs).borrow_mut() = Some((buffer, len))
+        });
+        delay.delay_ms(5u16);
     }
 }
