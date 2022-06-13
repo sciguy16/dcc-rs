@@ -6,16 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-* Implement `Reset`, `Idle`, and `BroadcastStop` packets
 ### Changed
-* `SpeedAndDirection` packet now uses 28 speed steps
-* STM32F103 example is now a speed controller
 ### Deprecated
 ### Removed
 ### Fixed
 ### Security
 
-## [0.0.1] - 2022-06-12
+## [0.2.0] - 2022-06-13
+### Added
+* Implement `Reset`, `Idle`, and `BroadcastStop` packets
+### Changed
+* `SpeedAndDirection` packet now uses 28 speed steps
+* STM32F103 example is now a speed controller
+
+## [0.1.0] - 2022-06-12
 ### Added
 * Initial implementation that can transmit a `SpeedAndDirection` packet
 * Example base station implementation on an STM32F103 "Blue Pill"
