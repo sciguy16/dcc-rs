@@ -21,9 +21,11 @@ packets in for the interrupt handler to retrieve at its leisure.
 
 ## Status
 This crate currently only implements the base station (transmitter) side, and
-only the basic "speed and direction" packet. Other DCC packets are a work in
-progress. DCC receiving is under future work, once the main packet types have
-been implemented.
+only the "baseline" "speed and direction", "reset", "idle", and "broadcast stop"
+packets. Other DCC packets are a work in progress.
+
+DCC receiving is under future work, once the main packet types have been
+implemented.
 
 ## Example implementations
 * [examples/stm32f103-blue-pill](examples/stm32f103-blue-pill) Base station
