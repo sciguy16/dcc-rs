@@ -21,6 +21,7 @@ use panic_halt as _;
 use stm32f1xx_hal as hal;
 
 use crate::hal::{
+    adc,
     gpio::{gpioa, Output, PushPull},
     pac::{interrupt, Interrupt, Peripherals, TIM2},
     prelude::*,
@@ -99,10 +100,11 @@ fn main() -> ! {
         .sysclk(48.MHz())
         //.pclk1(8.MHz())
         .freeze(&mut flash.acr);
+    // info!("adc freq: {}", clocks.adcclk());
 
     let mut gpioa = dp.GPIOA.split();
-    //let mut gpiob = dp.GPIOB.split();
-    //let mut gpioc = dp.GPIOC.split();
+    let mut gpiob = dp.GPIOB.split();
+    let mut gpioc = dp.GPIOC.split();
 
     info!("a");
     let dcc_pin = gpioa.pa0.into_push_pull_output(&mut gpioa.crl);
@@ -150,10 +152,39 @@ fn main() -> ! {
     // make a delay thing to send packets
     let mut delay = cp.SYST.delay(&clocks);
 
-    let mut reverse_counter = 0;
-    let mut direction = Direction::Forward;
-    let mut speed = 0;
+    // LED to show when power is on
+    let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
+
+    // set up ADC
+    let mut adc1 = adc::Adc::adc1(dp.ADC1, clocks);
+    let mut ch0 = gpiob.pb0.into_analog(&mut gpiob.crl);
+
     loop {
+        // read the control
+        let control: u16 = adc1.read(&mut ch0).unwrap();
+
+        // it's a 12-bit ADC, range is 0..=4095
+        // speed is -16..=16
+        // use the following ranges:
+        // 0..1600: -16..0
+        // 2495..=4095: 0..=16
+        // 1601..2495: 0
+        let (speed, direction) = match control {
+            0..=1600 => (15 - control / 100, Direction::Backward),
+            2495..=4095 => ((control - 2494) / 100, Direction::Forward),
+            _ => (0, Direction::Forward),
+        };
+        info!(
+            "control set to: {}, speed is {} {}",
+            control, speed, direction
+        );
+        let speed = (speed & 0x0f) as u8;
+        if speed == 0 {
+            led.set_high();
+        } else {
+            led.set_low();
+        }
+
         //info!("tx, addr = {}", addr);
         // pop a new chunk of data into the buffer
         let pkt = SpeedAndDirection::builder()
@@ -168,16 +199,7 @@ fn main() -> ! {
         cortex_m::interrupt::free(|cs| {
             *TX_BUFFER.borrow(cs).borrow_mut() = Some((buffer, len))
         });
-        reverse_counter += 1;
-        if reverse_counter > 70 {
-            speed = 0;
-        }
-        if reverse_counter > 100 {
-            reverse_counter = 0;
-            speed = 4;
-            direction.toggle();
-            info!("Switch! Now running {:?}", direction);
-        }
+
         delay.delay_ms(15u16);
     }
 }
