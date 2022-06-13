@@ -28,7 +28,15 @@ DCC receiving is under future work, once the main packet types have been
 implemented.
 
 ## Example implementations
-* [examples/stm32f103-blue-pill](examples/stm32f103-blue-pill) Base station
+* [examples/stm32f103-blue-pill](examples/stm32f103-blue-pill) Single-channel
+speed controller
+
+## Contributing
+Contributions are welcome, in the form of code improvements, testing reports,
+more example implementations, more platform implementations, etc. I'm
+particularly interested in getting this running on an arduino uno/nano once
+the loose ends in Rust's AVR support have been tidied up. A drop-in replacement
+`DCC++`-compatible firmware would also be neat.
 
 ## Licence
 This crate is available under the terms of the Mozilla Public Licence Version
