@@ -4,3 +4,5 @@
 
 //! This module provides types and serialisers for each "service mode"
 //! packet type defined by the NMRA standard.
+//!
+//! <https://www.nmra.org/sites/default/files/standards/sandrp/pdf/S-9.2.3_2012_07.pdf>

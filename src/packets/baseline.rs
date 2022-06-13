@@ -4,6 +4,8 @@
 
 //! This module provides types and serialisers for each "baseline"
 //! packet type defined by the NMRA standard.
+//!
+//! <https://www.nmra.org/sites/default/files/s-92-2004-07.pdf>
 
 use super::{Preamble, Result, SerialiseBuffer};
 use crate::Error;
