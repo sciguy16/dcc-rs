@@ -87,7 +87,7 @@ impl SpeedAndDirection {
         buf[16..24].copy_from_bitslice([self.address].view_bits::<Msb0>());
         buf.set(24, false); // data start bit
         buf[25..33].copy_from_bitslice([self.instruction].view_bits::<Msb0>());
-        buf.set(33, false); // crc start bit
+        buf.set(33, false); // ecc start bit
         buf[34..42].copy_from_bitslice([self.ecc].view_bits::<Msb0>());
 
         buf.set(42, true); // stop bit
@@ -185,6 +185,26 @@ impl SpeedAndDirectionBuilder {
     }
 }
 
+/// A Reset packet is one in which the address, instruction, and ECC are
+/// all zero
+pub struct Reset;
+
+impl Reset {
+    /// Serialise the packed into the provided buffer
+    pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
+        buf[0..16].copy_from_bitslice([0xff, 0xfe].view_bits::<Msb0>()); // preamble
+        buf.set(15, false); // start bit
+        buf[16..24].copy_from_bitslice([0x00].view_bits::<Msb0>());
+        buf.set(24, false); // data start bit
+        buf[25..33].copy_from_bitslice([0x00].view_bits::<Msb0>());
+        buf.set(33, false); // ecc start bit
+        buf[34..42].copy_from_bitslice([0x00].view_bits::<Msb0>());
+        buf.set(42, true); // stop bit
+
+        Ok(43)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -261,6 +281,34 @@ mod test {
             0b0_0_010110, // instr[7] + start + ecc[..6]
             0b11_1_00000, // ecc[6..] + stop + 5 zeroes
         ];
+        let mut expected = SerialiseBuffer::default();
+        expected[..43]
+            .copy_from_bitslice(&expected_arr.view_bits::<Msb0>()[..43]);
+        println!("got:");
+        display_serialise_buffer(&buf);
+        println!("expected:");
+        display_serialise_buffer(&expected);
+        assert_eq!(len, 43);
+        assert_eq!(buf[..len], expected[..43]);
+        Ok(())
+    }
+
+    #[test]
+    fn serialise_reset_packet() -> Result<()> {
+        let pkt = Reset;
+        let mut buf = SerialiseBuffer::default();
+        let len = pkt.serialise(&mut buf)?;
+
+        #[allow(clippy::unusual_byte_groupings)]
+        let expected_arr = [
+            0xff_u8,      // preamble
+            0b1111_1110,  // preamble + start
+            0x00,         // address
+            0b0_0000_000, // start + instr[..7]
+            0b0_0_000000, // instr[7] + start + ecc[..6]
+            0b00_1_00000, // ecc[6..] + stop + 5 zeroes
+        ];
+
         let mut expected = SerialiseBuffer::default();
         expected[..43]
             .copy_from_bitslice(&expected_arr.view_bits::<Msb0>()[..43]);

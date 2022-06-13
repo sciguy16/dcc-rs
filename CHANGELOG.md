@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+* Implement `Reset` packet
 ### Changed
 * `SpeedAndDirection` packet now uses 28 speed steps
 * STM32F103 example is now a speed controller
