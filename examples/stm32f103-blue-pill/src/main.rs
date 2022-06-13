@@ -170,15 +170,15 @@ fn main() -> ! {
         // 2495..=4095: 0..=16
         // 1601..2495: 0
         let (speed, direction) = match control {
-            0..=1600 => (15 - control / 100, Direction::Backward),
-            2495..=4095 => ((control - 2494) / 100, Direction::Forward),
+            0..=1600 => (28 - control / 57, Direction::Backward),
+            2495..=4095 => ((control - 2494) / 57, Direction::Forward),
             _ => (0, Direction::Forward),
         };
         info!(
             "control set to: {}, speed is {} {}",
             control, speed, direction
         );
-        let speed = (speed & 0x0f) as u8;
+        let speed = (speed & 0x1f) as u8;
         if speed == 0 {
             led.set_high();
         } else {

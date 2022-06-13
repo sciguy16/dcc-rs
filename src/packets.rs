@@ -52,6 +52,21 @@ impl Direction {
 
 /// Speed and Direction packet. Used to command a loco to move in the
 /// given direction at the given speed.
+///
+/// The speed part of the instruction is five bits wide, with the bits
+/// ordered `04321`, where `0` is LSB and `4` is MSB. The speed
+/// instructions are defined by the following list:
+/// ```ignore
+///  0 4321 | meaning
+///  ---------------------------------------------
+///  0 0000 | stop
+///  1 0000 | also stop
+///  0 0001 | e-stop
+///  1 0001 | also e-stop
+///  0 0010 | speed 1 (0x04)
+///   ...   |   ...
+///  1 1111 | speed 28 (0x1f)
+/// ```
 pub struct SpeedAndDirection {
     address: u8,
     instruction: u8,
@@ -86,7 +101,7 @@ impl SpeedAndDirection {
 pub struct SpeedAndDirectionBuilder {
     address: Option<u8>,
     speed: Option<u8>,
-    headlight: Option<bool>,
+    e_stop: bool,
     direction: Option<Direction>,
 }
 
@@ -107,7 +122,7 @@ impl SpeedAndDirectionBuilder {
     /// 16. Returns `Error::InvalidSpeed` if the provided speed is outside
     /// this range.
     pub fn speed(&mut self, speed: u8) -> Result<&mut Self> {
-        if speed > 0x0f {
+        if speed > 28 {
             Err(Error::InvalidSpeed)
         } else {
             self.speed = Some(speed);
@@ -121,10 +136,9 @@ impl SpeedAndDirectionBuilder {
         self
     }
 
-    /// Sets the "headlight" bit. Can also be an additional speed bit
-    /// depending on decoder configuration.
-    pub fn headlight(&mut self, headlight: bool) -> &mut Self {
-        self.headlight = Some(headlight);
+    /// Sends the e-stop signal. Overrides any other set speed value
+    pub fn e_stop(&mut self, e_stop: bool) -> &mut Self {
+        self.e_stop = e_stop;
         self
     }
 
@@ -139,15 +153,29 @@ impl SpeedAndDirectionBuilder {
     /// * `headlight = false`
     pub fn build(&mut self) -> SpeedAndDirection {
         let address = self.address.unwrap_or(3);
+        // add the weird offset to the speed
+        let speed = match self.speed {
+            Some(0) | None => 0,
+            Some(speed) => speed + 3,
+        };
+        #[cfg(test)]
+        eprintln!("Speed is {speed} = {speed:08b}");
         let mut instruction = 0b0100_0000; // packet type
         if let Direction::Forward = self.direction.unwrap_or_default() {
             instruction |= 0b0010_0000;
         }
-        if self.headlight.unwrap_or_default() {
-            instruction |= 0b0001_0000;
+
+        // e-stop overrides other speed setting
+        if self.e_stop {
+            instruction |= 0x01;
+        } else {
+            // upper four bits of speed
+            instruction |= (speed >> 1) & 0x0f;
+
+            // LSB of speed
+            instruction |= (speed & 0x01) << 4;
         }
-        // speed is only in the bottom 4 bits, enforced by builder
-        instruction |= self.speed.unwrap_or_default();
+
         let ecc = address ^ instruction;
         SpeedAndDirection {
             address,
@@ -165,7 +193,7 @@ mod test {
         println!("{buf:?}");
         //        15              1 8        1 8        1 8        1
         //        15              16 24      25 33      34 42      43
-        println!("ppppppppppppppp s aaaaaaaa s 01dcvvvv s cccccccc s");
+        println!("ppppppppppppppp s aaaaaaaa s 01dvvvvv s cccccccc s");
         println!(
             "{} {} {} {} {} {} {} {}",
             buf[..15]
@@ -203,8 +231,11 @@ mod test {
             .direction(Direction::Forward)
             .build();
         assert_eq!(pkt.address, 35);
-        assert_eq!(pkt.instruction, 0b0110_1110);
-        assert_eq!(pkt.ecc, 0x4d);
+        let expected = 0b0111_1000;
+        eprintln!("Got instruction: {:08b}", pkt.instruction);
+        eprintln!("Expected:        {expected:08b}");
+        assert_eq!(pkt.instruction, expected);
+        assert_eq!(pkt.ecc, 0x5b);
 
         Ok(())
     }
@@ -218,14 +249,17 @@ mod test {
             .build();
         let mut buf = SerialiseBuffer::default();
         let len = pkt.serialise(&mut buf)?;
+        // instruction is:
+        // 01 D S SSSS
+        // 01 1 1 1101
         #[allow(clippy::unusual_byte_groupings)]
         let expected_arr = [
             0xff_u8,      // preamble
             0b1111_1110,  // preamble + start
             35,           // address
-            0b0_0110_111, // start + instr[..7]
-            0b0_0_010011, // instr[7] + start + crc[..6]
-            0b01_1_00000, // crc[6..] + stop + 5 zeroes
+            0b0_0111_100, // start + instr[..7]
+            0b0_0_010110, // instr[7] + start + ecc[..6]
+            0b11_1_00000, // ecc[6..] + stop + 5 zeroes
         ];
         let mut expected = SerialiseBuffer::default();
         expected[..43]
