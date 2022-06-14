@@ -224,6 +224,23 @@ pub struct PhysicalRegister {
 }
 
 impl PhysicalRegister {
+    /// Address (CV 1)
+    pub const ADDRESS: u8 = 1;
+    /// Start Voltage (CV 2)
+    pub const START_VOLTAGE: u8 = 2;
+    /// Acceleration (CV 3)
+    pub const ACCELERATION: u8 = 3;
+    /// Deceleration (CV 4)
+    pub const DECELERATION: u8 = 4;
+    /// Basic configuration register (CV 29)
+    pub const BASIC_CONFIGURATION_REGISTER: u8 = 5;
+    /// Reserved for page register
+    pub const RESERVED_FOR_PAGE_REGISTER: u8 = 6;
+    /// Version number (CV 7)
+    pub const VERSION_NUMBER: u8 = 7;
+    /// Manufacturer ID (CV 8)
+    pub const MANUFACTURER_ID: u8 = 8;
+
     /// Builder for `PhysicalRegister`
     pub fn builder() -> PhysicalRegisterBuilder {
         PhysicalRegisterBuilder::default()
