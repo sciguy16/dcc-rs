@@ -65,7 +65,6 @@ impl Direction {
 pub struct SpeedAndDirection {
     address: u8,
     instruction: u8,
-    ecc: u8,
 }
 
 impl SpeedAndDirection {
@@ -77,17 +76,14 @@ impl SpeedAndDirection {
 
     /// Serialise the packed into the provided buffer
     pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
-        buf[0..16].copy_from_bitslice([0xff, 0xfe].view_bits::<Msb0>()); // preamble
-        buf.set(15, false); // start bit
-        buf[16..24].copy_from_bitslice([self.address].view_bits::<Msb0>());
-        buf.set(24, false); // data start bit
-        buf[25..33].copy_from_bitslice([self.instruction].view_bits::<Msb0>());
-        buf.set(33, false); // ecc start bit
-        buf[34..42].copy_from_bitslice([self.ecc].view_bits::<Msb0>());
-
-        buf.set(42, true); // stop bit
-
-        Ok(43)
+        super::serialise(
+            &[
+                self.address,
+                self.instruction,
+                self.address ^ self.instruction,
+            ],
+            buf,
+        )
     }
 }
 
@@ -171,11 +167,9 @@ impl SpeedAndDirectionBuilder {
             instruction |= (speed & 0x01) << 4;
         }
 
-        let ecc = address ^ instruction;
         SpeedAndDirection {
             address,
             instruction,
-            ecc,
         }
     }
 }
@@ -189,16 +183,7 @@ pub struct Reset;
 impl Reset {
     /// Serialise the packed into the provided buffer
     pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
-        buf[0..16].copy_from_bitslice([0xff, 0xfe].view_bits::<Msb0>()); // preamble
-        buf.set(15, false); // start bit
-        buf[16..24].copy_from_bitslice([0x00].view_bits::<Msb0>());
-        buf.set(24, false); // data start bit
-        buf[25..33].copy_from_bitslice([0x00].view_bits::<Msb0>());
-        buf.set(33, false); // ecc start bit
-        buf[34..42].copy_from_bitslice([0x00].view_bits::<Msb0>());
-        buf.set(42, true); // stop bit
-
-        Ok(43)
+        super::serialise(&[0x00, 0x00, 0x00], buf)
     }
 }
 
@@ -209,16 +194,7 @@ pub struct Idle;
 impl Idle {
     /// Serialise the packed into the provided buffer
     pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
-        buf[0..16].copy_from_bitslice([0xff, 0xfe].view_bits::<Msb0>()); // preamble
-        buf.set(15, false); // start bit
-        buf[16..24].copy_from_bitslice([0xff].view_bits::<Msb0>());
-        buf.set(24, false); // data start bit
-        buf[25..33].copy_from_bitslice([0x00].view_bits::<Msb0>());
-        buf.set(33, false); // ecc start bit
-        buf[34..42].copy_from_bitslice([0xff].view_bits::<Msb0>());
-        buf.set(42, true); // stop bit
-
-        Ok(43)
+        super::serialise(&[0xff, 0x00, 0xff], buf)
     }
 }
 
@@ -246,16 +222,8 @@ impl BroadcastStop {
     /// Serialise the packed into the provided buffer
     pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
         let instr = if self.float { 0b0101_0000 } else { 0b0100_0000 };
-        buf[0..16].copy_from_bitslice([0xff, 0xfe].view_bits::<Msb0>()); // preamble
-        buf.set(15, false); // start bit
-        buf[16..24].copy_from_bitslice([0x00].view_bits::<Msb0>());
-        buf.set(24, false); // data start bit
-        buf[25..33].copy_from_bitslice([instr].view_bits::<Msb0>());
-        buf.set(33, false); // ecc start bit
-        buf[34..42].copy_from_bitslice([instr].view_bits::<Msb0>());
-        buf.set(42, true); // stop bit
 
-        Ok(43)
+        super::serialise(&[0x00, instr, instr], buf)
     }
 }
 
@@ -309,7 +277,6 @@ mod test {
         eprintln!("Got instruction: {:08b}", pkt.instruction);
         eprintln!("Expected:        {expected:08b}");
         assert_eq!(pkt.instruction, expected);
-        assert_eq!(pkt.ecc, 0x5b);
 
         Ok(())
     }

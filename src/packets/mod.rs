@@ -26,5 +26,18 @@ pub type SerialiseBuffer = BitArr!(for 43, in u8, Msb0);
 /// TODO use this method for all serialisations. Should be less error-prone
 /// than all of the manual bit offsets we implemented in baseline.
 fn serialise(data: &[u8], buf: &mut SerialiseBuffer) -> Result<usize> {
-    todo!()
+    buf[0..16].copy_from_bitslice([0xff, 0xfe].view_bits::<Msb0>()); // preamble
+
+    let mut pos: usize = 15;
+    for byte in data {
+        buf.set(pos, false); // start bit
+        pos += 1;
+        buf[pos..pos + 8].copy_from_bitslice([*byte].view_bits::<Msb0>());
+        pos += 8;
+    }
+
+    buf.set(pos, true); // stop bit
+    pos += 1;
+
+    Ok(pos)
 }
