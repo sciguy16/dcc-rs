@@ -8,7 +8,13 @@
 //! <https://www.nmra.org/sites/default/files/standards/sandrp/pdf/S-9.2.3_2012_07.pdf>
 
 use super::{Error, Result, SerialiseBuffer};
-use bitvec::prelude::*;
+
+#[derive(Copy, Clone)]
+#[allow(missing_docs)]
+pub enum Operation {
+    Verify,
+    Write,
+}
 
 /// Instruction types supported by the `Instruction` packet:
 /// * `VerifyByte`: decoder compares its recorded CV value against the provided
@@ -207,10 +213,87 @@ impl AddressOnly {
     }
 }
 
+/// The `PhysicalRegister` operation instructs the decoder to update or verify
+/// the value stored in each of the eight "physical registers". These correspond
+/// to various CV slots depending on whether it is a locomotove or an accessory
+/// decoder.
+pub struct PhysicalRegister {
+    operation: Operation,
+    register: u8,
+    value: u8,
+}
+
+impl PhysicalRegister {
+    /// Builder for `PhysicalRegister`
+    pub fn builder() -> PhysicalRegisterBuilder {
+        PhysicalRegisterBuilder::default()
+    }
+
+    /// Serialise the PhysicalRegister packet into the provided bufffer. Returns
+    /// the number of bits written or an `Error::TooLong` if the buffer has
+    /// insufficient capacity
+    pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
+        let mut instr = 0b0111_0000;
+
+        if let Operation::Write = self.operation {
+            instr |= 0b0000_1000;
+        }
+
+        instr |= self.register;
+
+        super::serialise(&[instr, self.value, instr ^ self.value], buf)
+    }
+}
+
+/// Builder struct for the `PhysicalRegister` packet
+#[derive(Default)]
+pub struct PhysicalRegisterBuilder {
+    operation: Option<Operation>,
+    register: Option<u8>,
+    value: Option<u8>,
+}
+
+impl PhysicalRegisterBuilder {
+    /// Sets the `Operation` (verify/write mode) to be performed on the register
+    pub fn operation(&mut self, operation: Operation) -> &mut Self {
+        self.operation = Some(operation);
+        self
+    }
+
+    /// Sets the register address. Valid registers are numbered 1-8,
+    /// corresponding to raw addresses 0-7. Returns `Error::InvalidAddress` for
+    /// values outside this range
+    pub fn register(&mut self, register: u8) -> Result<&mut Self> {
+        if 1 < register && register <= 8 {
+            self.register = Some(register - 1);
+            Ok(self)
+        } else {
+            Err(Error::InvalidAddress)
+        }
+    }
+
+    /// The 8-bit value to use for the operation
+    pub fn value(&mut self, value: u8) -> &mut Self {
+        self.value = Some(value);
+        self
+    }
+
+    /// Build a `PhysicalRegister` packet, returning `Error::MissingField` if
+    /// any of the required fields are missing
+    pub fn build(&mut self) -> Result<PhysicalRegister> {
+        Ok(PhysicalRegister {
+            operation: self.operation.ok_or(Error::MissingField)?,
+            register: self.register.ok_or(Error::MissingField)?,
+            value: self.value.ok_or(Error::MissingField)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::packets::test::print_chunks;
+    use bitvec::prelude::*;
 
     #[test]
     fn serialise_instruction_packet_write_byte() {
@@ -302,6 +385,42 @@ mod test {
             0b0111_1000,    // 0111 C000
             0b0_0011_101,   // S0DD DDDD
             0b1_0_01_0000,  // DSEE EEEE
+            0b11_1_0_0000,  // EES- ----
+        ]
+        .view_bits::<Msb0>()[..len];
+        let mut expected = SerialiseBuffer::default();
+        expected[..43].copy_from_bitslice(expected_arr);
+
+        println!("Got:");
+        print_chunks(&buf, 43);
+        println!("Expected:");
+        print_chunks(&expected, 43);
+        assert_eq!(buf[..len], expected[..43]);
+    }
+
+    #[test]
+    fn serialise_physical_register_packet() {
+        // [    preamble    ] S 0111 CRRR S DDDD DDDD S EEEE EEEE S
+        // 1111 1111 1111 111_0 0111 1101 0 1010 1010 0 1101 0111 1
+        let pkt = PhysicalRegister::builder()
+            .operation(Operation::Write)
+            .register(6)
+            .unwrap()
+            .value(0xaa)
+            .build()
+            .unwrap();
+
+        let mut buf = SerialiseBuffer::default();
+        let len = pkt.serialise(&mut buf).unwrap();
+        assert_eq!(len, 43);
+
+        #[allow(clippy::unusual_byte_groupings)]
+        let expected_arr = &[
+            0b1111_1111_u8, // PPPP PPPP
+            0b1111_111_0,   // PPPP PPPS
+            0b0111_1_101,   // 0111 CRRR
+            0b0_1010_101,   // SDDD DDDD
+            0b0_0_11_0101,  // DSEE EEEE
             0b11_1_0_0000,  // EES- ----
         ]
         .view_bits::<Msb0>()[..len];
