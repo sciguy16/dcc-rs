@@ -24,7 +24,7 @@ const MAX_BITS: usize = 43;
 /// Buffer long enough to serialise any common DCC packet into
 pub type SerialiseBuffer = BitArr!(for MAX_BITS, in u8, Msb0);
 
-/// TODO use this method for all serialisations. Should be less error-prone
+/// Method used to perform serialisations. Should be less error-prone
 /// than all of the manual bit offsets we implemented in baseline.
 fn serialise(data: &[u8], buf: &mut SerialiseBuffer) -> Result<usize> {
     // check that the provided data will fit into the buffer
