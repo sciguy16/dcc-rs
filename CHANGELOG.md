@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+* Added `Instruction` service-mode packet
 ### Changed
 * Refactored `packets` module to have submodules for each packet class
 * Refactored common serialisation code into `packets` module

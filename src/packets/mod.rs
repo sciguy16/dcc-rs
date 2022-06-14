@@ -20,7 +20,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 struct Preamble(BitArr!(for 14, in u8, Msb0));
 
-const MAX_BITS: usize = 43;
+const MAX_BITS: usize = 15 + 4 * 9 + 1;
 /// Buffer long enough to serialise any common DCC packet into
 pub type SerialiseBuffer = BitArr!(for MAX_BITS, in u8, Msb0);
 
@@ -47,4 +47,25 @@ fn serialise(data: &[u8], buf: &mut SerialiseBuffer) -> Result<usize> {
     pos += 1;
 
     Ok(pos)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    pub fn print_chunks(buf: &SerialiseBuffer, limit: usize) {
+        println!("Preamble: {}", &buf[..15]);
+
+        let mut offset = 15;
+        while offset < limit - 1 {
+            println!(
+                "[{}] Chunk: {}-{:08b}",
+                offset,
+                buf[offset] as u8,
+                &buf[offset + 1..offset + 9]
+            );
+            offset += 9;
+        }
+        println!("Stop bit: {}", buf[offset] as u8);
+    }
 }

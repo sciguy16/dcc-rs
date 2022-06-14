@@ -25,6 +25,10 @@ pub enum Error {
     InvalidAddress,
     /// Not a valid short-mode DCC speed (must be in range 0-16)
     InvalidSpeed,
+    /// Invalid bit offset
+    InvalidOffset,
+    /// A required data field is missing
+    MissingField,
 }
 
 #[derive(Debug)]
