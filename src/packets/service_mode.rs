@@ -162,6 +162,51 @@ impl InstructionBuilder {
     }
 }
 
+/// `AddressOnly` instructs the decoder to set its short-mode address to the
+/// provided value and to clear its extended addressing and consist CVs
+#[allow(missing_docs)]
+pub enum AddressOnly {
+    Write { address: u8 },
+    Verify { address: u8 },
+}
+
+impl AddressOnly {
+    /// Create a packet instructing the decoder to write the specified address
+    /// into CV1. The decoder may respond with an acknowledgement on success.
+    pub fn write(address: u8) -> Result<AddressOnly> {
+        if address < 0x7f {
+            Ok(AddressOnly::Write { address })
+        } else {
+            Err(Error::InvalidAddress)
+        }
+    }
+
+    /// Create a packet instructing the decoder to verify the address stored in
+    /// CV1. The decoder must respond with an acknowledgement if they match.
+    pub fn verify(address: u8) -> Result<AddressOnly> {
+        if address < 0x7f {
+            Ok(AddressOnly::Verify { address })
+        } else {
+            Err(Error::InvalidAddress)
+        }
+    }
+
+    /// Serialise the Instruction packet into the provided bufffer. Returns the
+    /// number of bits written or an `Error::TooLong` if the buffer has
+    /// insufficient capacity
+    pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
+        let mut instr = 0b0111_0000;
+        let address = match self {
+            AddressOnly::Write { address } => {
+                instr |= 0b0000_1000;
+                *address
+            }
+            AddressOnly::Verify { address } => *address,
+        };
+        super::serialise(&[instr, address, instr ^ address], buf)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -238,5 +283,35 @@ mod test {
         println!("Expected:");
         print_chunks(&expected, 52);
         assert_eq!(buf[..len], expected[..52]);
+    }
+
+    #[test]
+    fn serialise_address_only_packet() {
+        // [    preamble    ] S 0111 C000 S 0DDD DDDD S EEEE EEEE S
+        // 1111 1111 1111 111_0 0111 1000 0 0011 1011 0 0100 0011 1
+        let pkt = AddressOnly::write(59).unwrap();
+
+        let mut buf = SerialiseBuffer::default();
+        let len = pkt.serialise(&mut buf).unwrap();
+        assert_eq!(len, 43);
+
+        #[allow(clippy::unusual_byte_groupings)]
+        let expected_arr = &[
+            0b1111_1111_u8, // PPPP PPPP
+            0b1111_111_0,   // PPPP PPPS
+            0b0111_1000,    // 0111 C000
+            0b0_0011_101,   // S0DD DDDD
+            0b1_0_01_0000,  // DSEE EEEE
+            0b11_1_0_0000,  // EES- ----
+        ]
+        .view_bits::<Msb0>()[..len];
+        let mut expected = SerialiseBuffer::default();
+        expected[..43].copy_from_bitslice(expected_arr);
+
+        println!("Got:");
+        print_chunks(&buf, 43);
+        println!("Expected:");
+        print_chunks(&expected, 43);
+        assert_eq!(buf[..len], expected[..43]);
     }
 }
