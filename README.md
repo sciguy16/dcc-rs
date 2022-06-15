@@ -1,6 +1,6 @@
 # dcc-rs
-![Crates.io](https://img.shields.io/crates/v/dcc-rs)
-![docs.rs](https://img.shields.io/docsrs/dcc-rs)
+[![Crates.io](https://img.shields.io/crates/v/dcc-rs)](https://crates.io/dcc-rs)
+[![docs.rs](https://img.shields.io/docsrs/dcc-rs)](https://docs.rs/dcc-rs)
 
 Pure-Rust implementation of NMRA Digital Command Control
 
