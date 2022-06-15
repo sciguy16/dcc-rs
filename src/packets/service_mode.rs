@@ -330,6 +330,26 @@ impl FactoryReset {
     }
 }
 
+/// Query an older decoder to verify its address
+pub struct AddressQuery {
+    address: u8,
+}
+
+impl AddressQuery {
+    /// Create an `AddressQuery` packet for the given address
+    pub fn address(address: u8) -> AddressQuery {
+        AddressQuery { address }
+    }
+
+    /// Serialise the PhysicalRegister packet into the provided bufffer. Returns
+    /// the number of bits written or an `Error::TooLong` if the buffer has
+    /// insufficient capacity
+    pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
+        let instr = 0b11111001;
+        super::serialise(&[self.address, instr, self.address ^ instr], buf)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
