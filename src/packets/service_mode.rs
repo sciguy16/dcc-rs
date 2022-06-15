@@ -318,6 +318,18 @@ impl PhysicalRegisterBuilder {
     }
 }
 
+/// Reset decoder to factory-default condition
+pub struct FactoryReset;
+
+impl FactoryReset {
+    /// Serialise the PhysicalRegister packet into the provided bufffer. Returns
+    /// the number of bits written or an `Error::TooLong` if the buffer has
+    /// insufficient capacity
+    pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
+        super::serialise(&[0b01111111, 0b00001000, 0b01110111], buf)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
