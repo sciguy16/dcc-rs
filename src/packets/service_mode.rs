@@ -16,6 +16,18 @@ pub enum Operation {
     Write,
 }
 
+/// "A packet sequence sent to guarantee the contents of the page register"
+pub struct PagePreset;
+
+impl PagePreset {
+    /// Serialise the Instruction packet into the provided bufffer. Returns the
+    /// number of bits written or an `Error::TooLong` if the buffer has
+    /// insufficient capacity
+    pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
+        super::serialise(&[0b01111101, 0b00000001, 0b01111100], buf)
+    }
+}
+
 /// Instruction types supported by the `Instruction` packet:
 /// * `VerifyByte`: decoder compares its recorded CV value against the provided
 /// data byte and responds with an acknowledgement if they match
