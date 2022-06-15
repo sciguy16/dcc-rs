@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-* Added `Instruction`, `AddressOnly`, and `PhysicalRegister` service-mode packets
+* Added service-mode packets
 * `PhysicalRegister` has convenience constants allowing the registers to be
 referred to by name
 ### Changed

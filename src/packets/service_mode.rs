@@ -350,6 +350,55 @@ impl AddressQuery {
     }
 }
 
+/// Instruct any decoder not matching the given address to ignore any subsequent
+/// service-mode packets
+pub struct DecoderLock {
+    address: u8,
+}
+
+impl DecoderLock {
+    /// Builder for DecoderLock packet
+    pub fn builder() -> DecoderLockBuilder {
+        DecoderLockBuilder::default()
+    }
+
+    /// Serialise the PhysicalRegister packet into the provided bufffer. Returns
+    /// the number of bits written or an `Error::TooLong` if the buffer has
+    /// insufficient capacity
+    pub fn serialise(&self, buf: &mut SerialiseBuffer) -> Result<usize> {
+        let instr = 0b11111001;
+        super::serialise(&[0, instr, self.address, self.address ^ instr], buf)
+    }
+}
+
+/// Builder for DecoderLock packet
+#[derive(Default)]
+pub struct DecoderLockBuilder {
+    address: Option<u8>,
+}
+
+impl DecoderLockBuilder {
+    /// Set the address of the DecoderLock packet. Only short-mode (i.e. 7-bit)
+    /// addresses are supported. Returns an `Error::InvalidAddress` if the
+    /// supplied address does not fit into 7 bits.
+    pub fn address(&mut self, address: u8) -> Result<&mut Self> {
+        if address < 0x7f {
+            self.address = Some(address);
+            Ok(self)
+        } else {
+            Err(Error::InvalidAddress)
+        }
+    }
+
+    /// Build the DecoderLock packet. Returns `Error::MissingField` if the
+    /// address has not been set
+    pub fn build(&mut self) -> Result<DecoderLock> {
+        Ok(DecoderLock {
+            address: self.address.ok_or(Error::MissingField)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
