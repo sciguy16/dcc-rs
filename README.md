@@ -1,4 +1,6 @@
 # dcc-rs
+![Crates.io](https://img.shields.io/crates/v/dcc-rs)
+![docs.rs](https://img.shields.io/docsrs/dcc-rs)
 
 Pure-Rust implementation of NMRA Digital Command Control
 
@@ -21,8 +23,8 @@ packets in for the interrupt handler to retrieve at its leisure.
 
 ## Status
 This crate currently only implements the base station (transmitter) side, and
-only the "baseline" "speed and direction", "reset", "idle", and "broadcast stop"
-packets. Other DCC packets are a work in progress.
+only the "baseline" and "service mode" packets. "Extended format" DCC packets
+are a work in progress.
 
 DCC receiving is under future work, once the main packet types have been
 implemented.

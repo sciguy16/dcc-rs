@@ -6,16 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.3.0] - 2022-06-15
+### Added
 * Added service-mode packets
 * `PhysicalRegister` has convenience constants allowing the registers to be
 referred to by name
 ### Changed
 * Refactored `packets` module to have submodules for each packet class
 * Refactored common serialisation code into `packets` module
-### Deprecated
-### Removed
-### Fixed
-### Security
 
 ## [0.2.0] - 2022-06-13
 ### Added
