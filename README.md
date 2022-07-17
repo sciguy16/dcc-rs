@@ -32,6 +32,8 @@ implemented.
 ## Example implementations
 * [examples/stm32f103-blue-pill](examples/stm32f103-blue-pill) Single-channel
 speed controller
+* [dcc-controller-rs](https://github.com/sciguy16/dcc-controller-rs) Two channel
+speed controller
 
 ## Contributing
 Contributions are welcome, in the form of code improvements, testing reports,
